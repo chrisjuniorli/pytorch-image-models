@@ -17,6 +17,7 @@ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from .helpers import build_model_with_cfg
 from .layers import DropBlock2d, DropPath, AvgPool2dSame, BlurPool2d, create_attn, get_attn, create_classifier
 from .registry import register_model
+import pdb
 
 __all__ = ['ResNet', 'BasicBlock', 'Bottleneck']  # model_registry will add each entrypoint fn to this
 
@@ -318,6 +319,7 @@ class BasicBlock(nn.Module):
         nn.init.zeros_(self.bn2.weight)
 
     def forward(self, x):
+        #pdb.set_trace()
         shortcut = x
 
         x = self.conv1(x)
@@ -421,7 +423,6 @@ class Bottleneck(nn.Module):
         x = self.act3(x)
 
         return x
-
 
 def downsample_conv(
         in_channels, out_channels, kernel_size, stride=1, dilation=1, first_dilation=None, norm_layer=None):

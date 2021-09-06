@@ -47,6 +47,7 @@ from .features import FeatureInfo, FeatureHooks
 from .helpers import build_model_with_cfg, default_cfg_for_features
 from .layers import create_conv2d, create_classifier
 from .registry import register_model
+import pdb
 
 __all__ = ['EfficientNet', 'EfficientNetFeatures']
 
@@ -464,6 +465,7 @@ class EfficientNet(nn.Module):
             self.num_features, self.num_classes, pool_type=global_pool)
 
     def forward_features(self, x):
+        #pdb.set_trace()
         x = self.conv_stem(x)
         x = self.bn1(x)
         x = self.act1(x)

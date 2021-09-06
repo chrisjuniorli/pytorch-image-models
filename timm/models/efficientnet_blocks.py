@@ -9,6 +9,7 @@ from torch.nn import functional as F
 
 from .layers import create_conv2d, drop_path, make_divisible, create_act_layer
 from .layers.activations import sigmoid
+import pdb
 
 __all__ = [
     'SqueezeExcite', 'ConvBnAct', 'DepthwiseSeparableConv', 'InvertedResidual', 'CondConvResidual', 'EdgeResidual']
@@ -179,6 +180,7 @@ class InvertedResidual(nn.Module):
         return info
 
     def forward(self, x):
+        #pdb.set_trace()
         shortcut = x
 
         # Point-wise expansion
@@ -226,6 +228,7 @@ class CondConvResidual(InvertedResidual):
         self.routing_fn = nn.Linear(in_chs, self.num_experts)
 
     def forward(self, x):
+        #pdb.set_trace()
         shortcut = x
 
         # CondConv routing

@@ -33,6 +33,12 @@ from .selecsls import *
 from .senet import *
 from .sknet import *
 from .swin_transformer import *
+from .shuffle_swin_transformer import *
+from .swin_mlp import *
+from .cycle_mlp import *
+from .ccmlp import *
+from .ccmlpv2 import *
+from .ccmlpv3 import *
 from .tnt import *
 from .tresnet import *
 from .vgg import *
@@ -43,6 +49,8 @@ from .vovnet import *
 from .xception import *
 from .xception_aligned import *
 from .twins import *
+from .vip import *
+from .pvt import *
 
 from .factory import create_model, split_model_name, safe_model_name
 from .helpers import load_checkpoint, resume_checkpoint, model_parameters

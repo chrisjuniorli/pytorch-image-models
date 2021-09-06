@@ -25,7 +25,6 @@ class Mlp(nn.Module):
         x = self.drop(x)
         return x
 
-
 class GluMlp(nn.Module):
     """ MLP w/ GLU style gating
     See: https://arxiv.org/abs/1612.08083, https://arxiv.org/abs/2002.05202

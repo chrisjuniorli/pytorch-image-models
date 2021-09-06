@@ -13,7 +13,7 @@ from copy import deepcopy
 from functools import partial
 
 import torch.nn as nn
-
+import pdb
 from .efficientnet_blocks import *
 from .layers import CondConv2d, get_condconv_initializer, get_act_layer, get_attn, make_divisible
 
@@ -319,7 +319,7 @@ class EfficientNetBuilder:
                     ba['se_layer'] = partial(self.se_layer, rd_ratio=se_ratio)
                 else:
                     ba['se_layer'] = self.se_layer
-
+        #pdb.set_trace()
         if bt == 'ir':
             _log_info_if('  InvertedResidual {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
             block = CondConvResidual(**ba) if ba.get('num_experts', 0) else InvertedResidual(**ba)

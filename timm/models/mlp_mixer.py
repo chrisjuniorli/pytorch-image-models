@@ -48,7 +48,7 @@ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from .helpers import build_model_with_cfg, overlay_external_default_cfg
 from .layers import PatchEmbed, Mlp, GluMlp, GatedMlp, DropPath, lecun_normal_, to_2tuple
 from .registry import register_model
-
+import pdb
 
 def _cfg(url='', **kwargs):
     return {
@@ -59,7 +59,6 @@ def _cfg(url='', **kwargs):
         'first_conv': 'stem.proj', 'classifier': 'head',
         **kwargs
     }
-
 
 default_cfgs = dict(
     mixer_s32_224=_cfg(),
@@ -114,14 +113,18 @@ class MixerBlock(nn.Module):
             self, dim, seq_len, mlp_ratio=(0.5, 4.0), mlp_layer=Mlp,
             norm_layer=partial(nn.LayerNorm, eps=1e-6), act_layer=nn.GELU, drop=0., drop_path=0.):
         super().__init__()
+        #pdb.set_trace()
         tokens_dim, channels_dim = [int(x * dim) for x in to_2tuple(mlp_ratio)]
         self.norm1 = norm_layer(dim)
         self.mlp_tokens = mlp_layer(seq_len, tokens_dim, act_layer=act_layer, drop=drop)
+        #pdb.set_trace()
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         self.norm2 = norm_layer(dim)
         self.mlp_channels = mlp_layer(dim, channels_dim, act_layer=act_layer, drop=drop)
 
     def forward(self, x):
+        #pdb.set_trace()
+        ## x [b, N, C]
         x = x + self.drop_path(self.mlp_tokens(self.norm1(x).transpose(1, 2)).transpose(1, 2))
         x = x + self.drop_path(self.mlp_channels(self.norm2(x)))
         return x
@@ -156,7 +159,10 @@ class ResBlock(nn.Module):
         self.ls2 = nn.Parameter(init_values * torch.ones(dim))
 
     def forward(self, x):
+        #pdb.set_trace()
+        # x shape [b,196,384]
         x = x + self.drop_path(self.ls1 * self.linear_tokens(self.norm1(x).transpose(1, 2)).transpose(1, 2))
+        # x shape [b,196,384]
         x = x + self.drop_path(self.ls2 * self.mlp_channels(self.norm2(x)))
         return x
 
@@ -242,6 +248,7 @@ class MlpMixer(nn.Module):
             _init_weights(m, n, head_bias=head_bias)
 
     def forward(self, x):
+        #pdb.set_trace()
         x = self.stem(x)
         x = self.blocks(x)
         x = self.norm(x)

@@ -22,7 +22,8 @@ from contextlib import suppress
 from timm.models import create_model, apply_test_time_pool, load_checkpoint, is_model, list_models
 from timm.data import create_dataset, create_loader, resolve_data_config, RealLabelsImagenet
 from timm.utils import accuracy, AverageMeter, natural_key, setup_default_logging, set_jit_legacy
-
+from ptflops import get_model_complexity_info
+import pdb
 has_apex = False
 try:
     from apex import amp
@@ -108,7 +109,8 @@ parser.add_argument('--real-labels', default='', type=str, metavar='FILENAME',
                     help='Real labels JSON file for imagenet evaluation')
 parser.add_argument('--valid-labels', default='', type=str, metavar='FILENAME',
                     help='Valid label indices txt file for validation of partial label space')
-
+parser.add_argument('--params', action='store_true', default=False,
+                    help='only caculate params')
 
 def validate(args):
     # might as well try to validate something
@@ -190,6 +192,7 @@ def validate(args):
         real_labels = None
 
     crop_pct = 1.0 if test_time_pool else data_config['crop_pct']
+    #pdb.set_trace()
     loader = create_loader(
         dataset,
         input_size=data_config['input_size'],
@@ -216,6 +219,10 @@ def validate(args):
             input = input.contiguous(memory_format=torch.channels_last)
         model(input)
         end = time.time()
+        macs, params = get_model_complexity_info(model, data_config['input_size'], as_strings=False, print_per_layer_stat=True, verbose=True)
+        if args.params:
+            _logger.info('Params ({:}) Macs ({:})'.format(params, macs))
+            return
         for batch_idx, (input, target) in enumerate(loader):
             if args.no_prefetcher:
                 target = target.cuda()
@@ -254,6 +261,8 @@ def validate(args):
                         batch_idx, len(loader), batch_time=batch_time,
                         rate_avg=input.size(0) / batch_time.avg,
                         loss=losses, top1=top1, top5=top5))
+    
+    #macs, params = get_model_complexity_info(model, (3,224,224), as_strings=False, print_per_layer_stat=True, verbose=True)
 
     if real_labels is not None:
         # real labels mode replaces topk values at the end
@@ -267,9 +276,8 @@ def validate(args):
         img_size=data_config['input_size'][-1],
         cropt_pct=crop_pct,
         interpolation=data_config['interpolation'])
-
-    _logger.info(' * Acc@1 {:.3f} ({:.3f}) Acc@5 {:.3f} ({:.3f})'.format(
-       results['top1'], results['top1_err'], results['top5'], results['top5_err']))
+    #pdb.set_trace()
+    _logger.info(' * Acc@1 {:.3f} ({:.3f}) Acc@5 {:.3f} ({:.3f}) Params ({:}) Macs ({:})'.format(results['top1'], results['top1_err'], results['top5'], results['top5_err'], params, macs))
 
     return results
 
