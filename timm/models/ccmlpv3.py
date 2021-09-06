@@ -329,9 +329,9 @@ class CCMLP_STAGE(nn.Module):
         super(CCMLP_STAGE, self).__init__()
         self.num_classes = num_classes
         self.use_conv_blocks = use_conv_blocks
-        self.tokenizer = Tokenizer(img_size=img_size,
-                                   embed_dim=conv_dim)
+
         if self.use_conv_blocks:
+            self.tokenizer = Tokenizer(img_size=img_size, embed_dim=conv_dim)
             if conv_head == 'ir':
                 self.conv_head = EfficientConvHead(embed_dim_in=conv_dim, embed_dim_out=embedding_dim[0], headtype='ir')
             elif conv_head == 'cc':
@@ -339,6 +339,9 @@ class CCMLP_STAGE(nn.Module):
             else:
                 self.conv_head = ConvHead(num_conv_block, embed_dim_in=conv_dim, embed_dim_out=embedding_dim[0])
         
+        else:
+            self.tokenizer = Tokenizer(img_size=img_size, embed_dim=embedding_dim[0])
+
         self.stages = nn.ModuleList()
         for i in range(0,num_stage):
             if i == (num_stage-1) and num_stage!=2:
@@ -513,6 +516,13 @@ def ccmlp_b2(pretrained=False, **kwargs):
         num_stage=3, num_blocks=[4,8,3], downsample_rate=8, mlp_ratio=[3,3,3], conv_dim=96, embedding_dim=[192,384,768], 
         use_conv_blocks=True, num_conv_block=3, downsample_type='conv', use_depthconv=True, **kwargs)
     return _create_ccmlp('ccmlp_b2', pretrained=pretrained, **model_kwargs)
+
+@register_model
+def ccmlp_b2_baseline(pretrained=False, **kwargs):
+    model_kwargs = dict(
+        num_stage=4, num_blocks=[3,4,8,3], downsample_rate=4, mlp_ratio=[3,3,3,3], embedding_dim=[96,192,384,768], 
+        use_conv_blocks=False, use_depthconv=False, **kwargs)
+    return _create_ccmlp('ccmlp_b1', pretrained=pretrained, **model_kwargs)
 
 @register_model
 def ccmlp_b3(pretrained=False, **kwargs):
