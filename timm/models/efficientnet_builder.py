@@ -427,6 +427,7 @@ def _init_weight_goog(m, n='', fix_group_fanout=True):
     * https://github.com/tensorflow/tpu/blob/master/models/official/mnasnet/mnasnet_model.py
     * https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/efficientnet_model.py
     """
+    #pdb.set_trace()
     if isinstance(m, CondConv2d):
         fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
         if fix_group_fanout:
@@ -446,15 +447,23 @@ def _init_weight_goog(m, n='', fix_group_fanout=True):
     elif isinstance(m, nn.BatchNorm2d):
         nn.init.ones_(m.weight)
         nn.init.zeros_(m.bias)
+    elif isinstance(m, nn.LayerNorm):
+        nn.init.zeros_(m.bias)
+        nn.init.ones_(m.weight)
     elif isinstance(m, nn.Linear):
+        #print(n)
+        #pdb.set_trace()
         fan_out = m.weight.size(0)  # fan-out
         fan_in = 0
         if 'routing_fn' in n:
             fan_in = m.weight.size(1)
         init_range = 1.0 / math.sqrt(fan_in + fan_out)
         nn.init.uniform_(m.weight, -init_range, init_range)
-        nn.init.zeros_(m.bias)
-
+        if m.bias is not None:
+            if 'mlp' in n:
+                nn.init.normal_(m.bias, std=1e-6)
+            else:
+                nn.init.zeros_(m.bias)            
 
 def efficientnet_init_weights(model: nn.Module, init_fn=None):
     init_fn = init_fn or _init_weight_goog

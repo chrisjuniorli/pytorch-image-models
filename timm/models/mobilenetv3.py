@@ -22,6 +22,7 @@ from .features import FeatureInfo, FeatureHooks
 from .helpers import build_model_with_cfg, default_cfg_for_features
 from .layers import SelectAdaptivePool2d, Linear, create_conv2d, get_act_fn, hard_sigmoid
 from .registry import register_model
+import pdb
 
 __all__ = ['MobileNetV3', 'MobileNetV3Features']
 
@@ -93,6 +94,7 @@ class MobileNetV3(nn.Module):
                  pad_type='', act_layer=None, norm_layer=None, se_layer=None, se_from_exp=True,
                  round_chs_fn=round_channels, drop_rate=0., drop_path_rate=0., global_pool='avg'):
         super(MobileNetV3, self).__init__()
+        #pdb.set_trace()
         act_layer = act_layer or nn.ReLU
         norm_layer = norm_layer or nn.BatchNorm2d
         se_layer = se_layer or SqueezeExcite
@@ -260,6 +262,7 @@ def _gen_mobilenet_v3_rw(variant, channel_multiplier=1.0, pretrained=False, **kw
         # stage 6, 7x7 in
         ['cn_r1_k1_s1_c960'],  # hard-swish
     ]
+    #pdb.set_trace()
     model_kwargs = dict(
         block_args=decode_arch_def(arch_def),
         head_bias=False,
@@ -354,6 +357,7 @@ def _gen_mobilenet_v3(variant, channel_multiplier=1.0, pretrained=False, **kwarg
                 # stage 6, 7x7 in
                 ['cn_r1_k1_s1_c960'],  # hard-swish
             ]
+    #pdb.set_trace()
     se_layer = partial(SqueezeExcite, gate_layer='hard_sigmoid', force_act_layer=nn.ReLU, rd_round_fn=round_channels)
     model_kwargs = dict(
         block_args=decode_arch_def(arch_def),

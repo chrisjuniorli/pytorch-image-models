@@ -485,6 +485,7 @@ class SwinTransformer(nn.Module):
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]  # stochastic depth decay rule
 
         # build layers
+        #pdb.set_trace()
         layers = []
         for i_layer in range(self.num_layers):
             layers += [BasicLayer(
