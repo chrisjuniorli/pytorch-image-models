@@ -40,9 +40,16 @@ def _cfg(url='', **kwargs):
     }
 
 default_cfgs = {
-    'mobilenetswin_large_100': _cfg(
+    'mobilenetswin_2swin_c48': _cfg(
         interpolation='bicubic',
         url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/mobilenetv3_large_100_ra-f55367f5.pth'),
+    'mobilenetswin_2swin_c32': _cfg(
+        interpolation='bicubic',
+        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/mobilenetv3_large_100_ra-f55367f5.pth'),
+    'mobilenetswin_3swin_c32': _cfg(
+        interpolation='bicubic',
+        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/mobilenetv3_large_100_ra-f55367f5.pth'),
+
 }
 
 
@@ -266,6 +273,7 @@ class BasicLayer(nn.Module):
                  drop_path=0., norm_layer=nn.LayerNorm, downsample=None, use_checkpoint=False):
 
         super().__init__()
+        #pdb.set_trace()
         self.dim = dim
         self.input_resolution = input_resolution
         self.depth = depth
@@ -309,9 +317,12 @@ class MobileSwin(nn.Module):
     Paper: https://arxiv.org/abs/1905.02244
     """
 
-    def __init__(self, block_args, num_classes=1000, in_chans=3, stem_size=16, num_features=1280, head_bias=True,
+    def __init__(self, block_args, num_classes=1000, in_chans=3, stem_size=16, num_features=96, head_bias=True,
                  pad_type='', act_layer=None, norm_layer=None, se_layer=None, se_from_exp=True,
-                 round_chs_fn=round_channels, drop_rate=0., drop_path_rate=0., global_pool='avg'):
+                 round_chs_fn=round_channels, drop_rate=0., drop_path_rate=0., global_pool='avg',
+                 num_layers=2, patch_grid=(56, 56), depths=(8, 4), num_heads=(8, 16), window_size=7,
+                 mlp_ratio=4.0, qkv_bias=True, qk_scale=None, attn_drop_rate=0.0, embed_dim=24,
+                 use_checkpoint=False, swin_norm_layer=nn.LayerNorm):
         super(MobileSwin, self).__init__()
         #pdb.set_trace()
         act_layer = act_layer or nn.ReLU
@@ -336,68 +347,31 @@ class MobileSwin(nn.Module):
         head_chs = builder.in_chs
 
         # Swin stages
-        self.num_layers = 2
+        self.num_layers = num_layers
         layers = []
-        embed_dim = 24
-        self.patch_grid = (56, 56)
-        depths = [8, 4]
-        num_heads = [8, 16]
-        window_size = 7
-        self.mlp_ratio = 4.0
-        qkv_bias = True
-        qk_scale = None
-        attn_drop_rate = 0.0
-        drop_rate = 0.0
         dpr = [x.item() for x in torch.linspace(0, 0.1, sum(depths))]
-        use_checkpoint = False
-        norm_layer = nn.LayerNorm
-
+        #pdb.set_trace()
         for i_layer in range(self.num_layers):
             layers += [BasicLayer(
                 dim=int(embed_dim * 2 ** i_layer),
-                input_resolution=(self.patch_grid[0] // (2 ** i_layer), self.patch_grid[1] // (2 ** i_layer)),
+                input_resolution=(patch_grid[0] // (2 ** i_layer), patch_grid[1] // (2 ** i_layer)),
                 depth=depths[i_layer],
                 num_heads=num_heads[i_layer],
                 window_size=window_size,
-                mlp_ratio=self.mlp_ratio,
+                mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias, qk_scale=qk_scale,
                 drop=drop_rate, attn_drop=attn_drop_rate,
                 drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],
-                norm_layer=norm_layer,
+                norm_layer=swin_norm_layer,
                 downsample=PatchMerging if (i_layer < self.num_layers) else None,
                 use_checkpoint=use_checkpoint)
             ]
         self.layers = nn.Sequential(*layers)
-        #pdb.set_trace()
-        # Head + Pooling
-        self.num_features = 96
-        self.norm = norm_layer(self.num_features)
+        self.num_features = num_features
+        self.norm = swin_norm_layer(self.num_features)
         self.avgpool = nn.AdaptiveAvgPool1d(1)
         self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
-
-        #self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
-        #num_pooled_chs = head_chs * self.global_pool.feat_mult()
-        #self.conv_head = create_conv2d(num_pooled_chs, self.num_features, 1, padding=pad_type, bias=head_bias)
-        #self.act2 = act_layer(inplace=True)
-        #self.classifier = Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
-
         efficientnet_init_weights(self)
-
-    def as_sequential(self):
-        layers = [self.conv_stem, self.bn1, self.act1]
-        layers.extend(self.blocks)
-        layers.extend([self.global_pool, self.conv_head, self.act2])
-        layers.extend([nn.Flatten(), nn.Dropout(self.drop_rate), self.classifier])
-        return nn.Sequential(*layers)
-
-    def get_classifier(self):
-        return self.classifier
-
-    def reset_classifier(self, num_classes, global_pool='avg'):
-        self.num_classes = num_classes
-        # cannot meaningfully change pooling of efficient head after creation
-        self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
-        self.classifier = Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
 
     def forward_features(self, x):
         #pdb.set_trace()
@@ -407,22 +381,14 @@ class MobileSwin(nn.Module):
         x = self.blocks(x)
         x = x.flatten(2).transpose(1, 2) 
         x = self.layers(x)
-        #pdb.set_trace()
-        #x = self.global_pool(x)
-        #x = self.conv_head(x)
-        #x = self.act2(x)
         x = self.norm(x)  # B L C
+        #pdb.set_trace()
         x = self.avgpool(x.transpose(1, 2))  # B C 1
         x = torch.flatten(x, 1) # B C
         return x
 
     def forward(self, x):
         x = self.forward_features(x)
-        #pdb.set_trace()
-        #if not self.global_pool.is_identity():
-        #    x = x.flatten(1)
-        #if self.drop_rate > 0.:
-        #    x = F.dropout(x, p=self.drop_rate, training=self.training)
         return self.head(x)
 
 
@@ -440,50 +406,72 @@ def _create_mnv3(variant, pretrained=False, **kwargs):
         model.default_cfg = default_cfg_for_features(model.default_cfg)
     return model
 
-def _gen_mobilenet_v3(variant, channel_multiplier=1.0, pretrained=False, **kwargs):
-    """Creates a MobileNet-V3 model.
-
-    Ref impl: ?
-    Paper: https://arxiv.org/abs/1905.02244
-
-    Args:
-      channel_multiplier: multiplier to number of channels per layer.
-    """
-    num_features = 1280
-    act_layer = resolve_act_layer(kwargs, 'hard_swish')
-    arch_def = [
-        # stage 0, 112x112 in
-        ['ds_r1_k3_s1_e1_c16_nre'],  # relu
-        # stage 1, 112x112 in
-        ['ir_r1_k3_s2_e4_c24_nre', 'ir_r1_k3_s1_e3_c24_nre'],  # relu
-        # stage 2, 56x56 in
-        #['ir_r3_k5_s2_e3_c40_se0.25_nre'],  # relu
-        # stage 3, 28x28 in
-        #['ir_r1_k3_s2_e6_c80', 'ir_r1_k3_s1_e2.5_c80', 'ir_r2_k3_s1_e2.3_c80'],  # hard-swish
-        # stage 4, 14x14in
-        #['ir_r2_k3_s1_e6_c112_se0.25'],  # hard-swish
-        # stage 5, 14x14in
-        #['ir_r3_k5_s2_e6_c160_se0.25'],  # hard-swish
-        # stage 6, 7x7 in
-        #['cn_r1_k1_s1_c960'],  # hard-swish
-    ]
+def _gen_mobilenet_v3(variant, channel_multiplier=1.0, num_features=96, patch_grid=(56, 56), depths=(8, 4),
+                    num_layers=2, num_heads=(8, 16), window_size=7, embed_dim_conv=16, embed_dim=24, pretrained=False, **kwargs):
     #pdb.set_trace()
+    act_layer = resolve_act_layer(kwargs, 'hard_swish')
+    if variant == 'mobilenetswin_2swin_c48':
+        arch_def = [
+            # stage 0, 112x112 in
+            ['ds_r1_k3_s1_e1_c48_nre'],  # relu
+            # stage 1, 112x112 in
+            ['ir_r1_k3_s2_e4_c96_nre', 'ir_r1_k3_s1_e3_c96_nre'],  # relu
+            # stage 2, 56x56 in
+        ]
+    elif variant == 'mobilenetswin_2swin_c32':
+        arch_def = [
+            # stage 0, 112x112 in
+            ['ds_r1_k3_s1_e1_c32_nre'],  # relu
+            # stage 1, 112x112 in
+            ['ir_r1_k3_s2_e4_c64_nre', 'ir_r1_k3_s1_e3_c64_nre'],  # relu
+            # stage 2, 56x56 in
+        ]
+    elif variant == 'mobilenetswin_3swin_c32':
+        arch_def = [
+            # stage 0, 112x112 in
+            ['ds_r1_k3_s1_e1_c32_nre'],  # relu
+            # stage 1, 112x112 in
+            #['ir_r1_k3_s2_e4_c96_nre', 'ir_r1_k3_s1_e3_c96_nre'],  # relu
+            # stage 2, 56x56 in
+        ]
+
     se_layer = partial(SqueezeExcite, gate_layer='hard_sigmoid', force_act_layer=nn.ReLU, rd_round_fn=round_channels)
     model_kwargs = dict(
         block_args=decode_arch_def(arch_def),
         num_features=num_features,
-        stem_size=16,
+        stem_size=embed_dim_conv,
         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
         norm_layer=partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=act_layer,
         se_layer=se_layer,
+        num_layers=num_layers, 
+        patch_grid=patch_grid, 
+        depths=depths, 
+        num_heads=num_heads, 
+        window_size=window_size,
+        embed_dim=embed_dim,
         **kwargs,
     )
     model = _create_mnv3(variant, pretrained, **model_kwargs)
     return model
 
 @register_model
-def mobilenetswin_large_100(pretrained=False, **kwargs):
+def mobilenetswin_2swin_c48(pretrained=False, **kwargs):
     """ MobileNet V3 """
-    model = _gen_mobilenet_v3('mobilenetswin_large_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('mobilenetswin_2swin_c48', channel_multiplier=1.0, num_features=384, patch_grid=(56, 56), 
+    depths=(6, 2), num_layers=2, num_heads=(24, 48), window_size=7, embed_dim_conv=48, embed_dim=96, pretrained=pretrained, **kwargs)
+    return model
+
+@register_model
+def mobilenetswin_2swin_c32(pretrained=False, **kwargs):
+    """ MobileNet V3 """
+    model = _gen_mobilenet_v3('mobilenetswin_2swin_c32', channel_multiplier=1.0, num_features=256, patch_grid=(56, 56), 
+    depths=(6, 2), num_layers=2, num_heads=(16, 32), window_size=7, embed_dim_conv=32, embed_dim=64, pretrained=pretrained, **kwargs)
+    return model
+
+@register_model
+def mobilenetswin_3swin_c32(pretrained=False, **kwargs):
+    """ MobileNet V3 """
+    model = _gen_mobilenet_v3('mobilenetswin_3swin_c32', channel_multiplier=1.0, num_features=256, patch_grid=(112, 112), 
+    depths=(2, 6, 2), num_layers=3, num_heads=(8, 16, 32), window_size=7, embed_dim_conv=32, embed_dim=32, pretrained=pretrained, **kwargs)
     return model
