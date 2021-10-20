@@ -52,6 +52,7 @@ from .twins import *
 from .vip import *
 from .pvt import *
 from .mobileswin import *
+from .hrswin import *
 
 from .factory import create_model, split_model_name, safe_model_name
 from .helpers import load_checkpoint, resume_checkpoint, model_parameters

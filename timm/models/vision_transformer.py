@@ -347,6 +347,9 @@ def _init_vit_weights(m, n: str = '', head_bias: float = 0., jax_impl: bool = Fa
         lecun_normal_(m.weight)
         if m.bias is not None:
             nn.init.zeros_(m.bias)
+    elif isinstance(m, nn.BatchNorm2d):
+        nn.init.ones_(m.weight)
+        nn.init.zeros_(m.bias)
     elif isinstance(m, nn.LayerNorm):
         nn.init.zeros_(m.bias)
         nn.init.ones_(m.weight)
