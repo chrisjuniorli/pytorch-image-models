@@ -186,7 +186,6 @@ class StageModule(nn.Module):
             ]))
 
     def forward(self, x):
-        pdb.set_trace()
         if self.patch_partition:
             x = self.patch_partition(x)
             

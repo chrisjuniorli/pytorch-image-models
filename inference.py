@@ -11,6 +11,7 @@ import argparse
 import logging
 import numpy as np
 import torch
+import pdb
 
 from timm.models import create_model, apply_test_time_pool
 from timm.data import ImageDataset, create_loader, resolve_data_config
@@ -55,7 +56,7 @@ parser.add_argument('--no-test-pool', dest='no_test_pool', action='store_true',
                     help='disable test time pool')
 parser.add_argument('--topk', default=5, type=int,
                     metavar='N', help='Top-k to output to CSV')
-
+parser.add_argument('--throughput', action='store_true', help='Test throughput only')
 
 def main():
     setup_default_logging()
@@ -81,7 +82,6 @@ def main():
         model = torch.nn.DataParallel(model, device_ids=list(range(args.num_gpu))).cuda()
     else:
         model = model.cuda()
-
     loader = create_loader(
         ImageDataset(args.data),
         input_size=config['input_size'],
@@ -100,6 +100,22 @@ def main():
     end = time.time()
     topk_ids = []
     with torch.no_grad():
+        if args.throughput:
+            for idx, (images, _) in enumerate(loader):
+                images = images.cuda(non_blocking=True)
+                batch_size = images.shape[0]
+                for i in range(50):
+                    model(images)
+                torch.cuda.synchronize()
+                _logger.info(f"throughput averaged with 30 times")
+                tic1 = time.time()
+                for i in range(30):
+                    model(images)
+                torch.cuda.synchronize()
+                tic2 = time.time()
+                _logger.info(f"batch_size {batch_size} throughput {30 * batch_size / (tic2 - tic1)}")
+                return
+
         for batch_idx, (input, _) in enumerate(loader):
             input = input.cuda()
             labels = model(input)
@@ -121,7 +137,6 @@ def main():
         for filename, label in zip(filenames, topk_ids):
             out_file.write('{0},{1}\n'.format(
                 filename, ','.join([ str(v) for v in label])))
-
 
 if __name__ == '__main__':
     main()

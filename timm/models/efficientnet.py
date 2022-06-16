@@ -418,7 +418,6 @@ class EfficientNet(nn.Module):
                  output_stride=32, pad_type='', round_chs_fn=round_channels, act_layer=None, norm_layer=None,
                  se_layer=None, drop_rate=0., drop_path_rate=0., global_pool='avg'):
         super(EfficientNet, self).__init__()
-        pdb.set_trace()
         act_layer = act_layer or nn.ReLU
         norm_layer = norm_layer or nn.BatchNorm2d
         se_layer = se_layer or SqueezeExcite
@@ -466,7 +465,6 @@ class EfficientNet(nn.Module):
             self.num_features, self.num_classes, pool_type=global_pool)
 
     def forward_features(self, x):
-        pdb.set_trace()
         x = self.conv_stem(x)
         x = self.bn1(x)
         x = self.act1(x)

@@ -89,7 +89,7 @@ class CycleFC(nn.Module):
 
         self.reset_parameters()
 
-    def reset_parameters(self) -> None:
+    def reset_parameters(self):
         init.kaiming_uniform_(self.weight, a=math.sqrt(5))
 
         if self.bias is not None:
@@ -115,11 +115,7 @@ class CycleFC(nn.Module):
                 offset[0, 2 * i + 1, 0, 0] = 0
         return offset
 
-    def forward(self, input: Tensor) -> Tensor:
-        """
-        Args:
-            input (Tensor[batch_size, in_channels, in_height, in_width]): input tensor
-        """
+    def forward(self, input: Tensor):
         B, C, H, W = input.size()
         return deform_conv2d_tv(input, self.offset.expand(B, -1, H, W), self.weight, self.bias, stride=self.stride,
                                 padding=self.padding, dilation=self.dilation)
