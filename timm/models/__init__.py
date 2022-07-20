@@ -39,6 +39,7 @@ from .cycle_mlp import *
 from .ccmlp import *
 from .ccmlpv2 import *
 from .ccmlpv3 import *
+from .convmlp_dualpath import *
 from .tnt import *
 from .tresnet import *
 from .vgg import *
